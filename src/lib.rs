@@ -1,33 +1,44 @@
-use wgpu::BufferAddress;
+//! High-level allocators for WGPU.
 
-fn align_addr(addr: BufferAddress, alignment: BufferAddress) -> BufferAddress {
-    (addr + alignment - 1) & !(alignment - 1)
+mod allocators;
+
+use wgpu::{BufferAddress, BufferSlice};
+
+pub use allocators::*;
+
+pub type NonZeroBufferAddress = std::num::NonZeroU64;
+
+pub struct Allocation<'a> {
+    slice: BufferSlice<'a>,
+    range: Range<BufferAddress>,
 }
 
-pub trait Alloc {
+pub trait Allocator {
+    fn new(size: NonZeroBufferAddress) -> Self;
+
     fn alloc(
         &mut self,
-        size: BufferAddress,
-        alignment: BufferAddress,
+        size: NonZeroBufferAddress,
+        alignment: NonZeroBufferAddress,
     ) -> Option<Range<BufferAddress>>;
 }
 
-pub trait Dealloc {
-    fn dealloc(&mut self, slice: Range<BufferAddress>) -> Result<(), ()>;
+pub trait Deallocator: Allocator {
+    fn dealloc(&mut self, range: Range<BufferAddress>) -> Result<(), ()>;
 }
 
-impl<A> Heap<A> {
+impl<A: Allocator> Heap<A> {
     pub fn new(
         device: &wgpu::Device,
-        initial_size: BufferAddress,
-        allocator: A,
+        size: NonZeroBufferAddress,
     ) -> Self {
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            size: initial_size,
+            size: size.get(),
             usage: wgpu::BufferUsages::empty(),
             mapped_at_creation: false,
         });
+        let allocator = A::new(size);
 
         Self { buffer, allocator }
     }
@@ -38,31 +49,26 @@ pub struct Heap<A> {
     allocator: A,
 }
 
-impl<A: Alloc> Heap<A> {
+impl<A: Allocator> Heap<A> {
     pub fn alloc<'a>(
         &'a mut self,
-        size: BufferAddress,
-        alignment: BufferAddress,
-    ) -> Option<BufferSlice<'a>> {
-        self.allocator.alloc(size, alignment).map(|range| self.buffer.slice(range))
+        size: NonZeroBufferAddress,
+        alignment: NonZeroBufferAddress,
+    ) -> Option<Allocation<'a>> {
+        self.allocator.alloc(size, alignment).map(|range| {
+            Allocation {
+                slice: self.buffer.slice(range),
+                range: range,
+            }
+        })
     }
 }
 
-pub struct Stack {
-    pointer: BufferAddress,
-}
-
-impl Alloc for Stack {
-    fn alloc(
-        &mut self,
-        size: BufferAddress,
-        alignment: BufferAddress,
-    ) -> Option<Range<BufferAddress>> {
-        let end = self.pointer;
-
-        let padded_size = align_addr(size, alignment);
-        self.pointer = self.pointer.checked_sub(padded_size)?;
-
-        Some(self.pointer..end)
+impl<A: Deallocator> Heap<A> {
+    pub fn dealloc<'a>(
+        &'a mut self,
+        allocation: Allocation,
+    ) -> Result<(), ()> {
+        self.allocator.dealloc(allocation.range)
     }
 }
