@@ -82,6 +82,7 @@ fn create_buffer(device: &wgpu::Device, size: u64, usage: BufferUsages) -> wgpu:
     })
 }
 
+#[derive(Debug)]
 pub struct Heap {
     staging_buffer: wgpu::Buffer,
     gpu_buffer: wgpu::Buffer,

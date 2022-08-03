@@ -4,6 +4,7 @@ use std::ops::Range;
 
 use crate::{Allocator, Deallocator, Heap, NonZeroBufferAddress};
 
+#[derive(Debug)]
 pub struct Stack {
     pointer: BufferAddress,
 }
