@@ -90,6 +90,16 @@ pub struct Heap {
 }
 
 impl Heap {
+    pub fn write(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        range: Range<BufferAddress>,
+        contents: &[u8],
+    ) {
+        self.slice(range.clone()).get_mapped_range_mut().copy_from_slice(contents);
+        self.flush_range(encoder, range);
+    }
+
     pub fn slice<'a>(&'a self, range: Range<BufferAddress>) -> wgpu::BufferSlice<'a> {
         self.staging_buffer.slice(range)
     }
