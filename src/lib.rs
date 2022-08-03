@@ -62,23 +62,30 @@ impl Heap {
                 device,
                 size.get(),
                 BufferUsages::COPY_SRC | BufferUsages::MAP_WRITE,
+                true,
             ),
             gpu_buffer: create_buffer(
                 device,
                 size.get(),
                 BufferUsages::COPY_DST | usage.as_buffer_usages(),
+                false,
             ),
             size,
         }
     }
 }
 
-fn create_buffer(device: &wgpu::Device, size: u64, usage: BufferUsages) -> wgpu::Buffer {
+fn create_buffer(
+    device: &wgpu::Device,
+    size: u64,
+    usage: BufferUsages,
+    is_mapped_at_creation: bool,
+) -> wgpu::Buffer {
     device.create_buffer(&wgpu::BufferDescriptor {
         label: None,
         size,
         usage,
-        mapped_at_creation: false,
+        mapped_at_creation: is_mapped_at_creation,
     })
 }
 
