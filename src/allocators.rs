@@ -19,10 +19,9 @@ impl Allocator for Stack {
         size: NonZeroBufferAddress,
         alignment: NonZeroBufferAddress,
     ) -> Option<Range<BufferAddress>> {
-        let end = self.pointer;
-        self.pointer = end.checked_sub(size.get())? & create_alignment_bitmask(alignment);
+        self.pointer = self.pointer.checked_sub(size.get())? & create_alignment_bitmask(alignment);
 
-        Some(self.pointer..end)
+        Some(self.pointer..(self.pointer + size.get()))
     }
 }
 
