@@ -108,7 +108,10 @@ impl Heap {
         wgpu::BufferBinding {
             buffer: &self.gpu_buffer,
             offset: range.start,
-            size: Some(get_range_size(&range)),
+            size: Some(
+                NonZeroBufferAddress::new(get_range_size(&range))
+                    .expect("buffer binding size is zero; must be nonzero")
+            ),
         }
     }
 
@@ -131,7 +134,7 @@ impl Heap {
     }
 }
 
-fn get_range_size(range: Range<BufferAddress>) -> BufferAddress {
+fn get_range_size(range: &Range<BufferAddress>) -> BufferAddress {
     range
         .end
         .checked_sub(range.start)
