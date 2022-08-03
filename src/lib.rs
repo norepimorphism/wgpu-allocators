@@ -108,7 +108,7 @@ impl Heap {
         wgpu::BufferBinding {
             buffer: &self.gpu_buffer,
             offset: range.start,
-            size: Some(self.size),
+            size: Some(get_range_size(&range)),
         }
     }
 
@@ -126,10 +126,14 @@ impl Heap {
             range.start,
             &self.gpu_buffer,
             range.start,
-            range
-                .end
-                .checked_sub(range.start)
-                .expect("range is backwards; end should not be less than start"),
+            get_range_size(&range),
         );
     }
+}
+
+fn get_range_size(range: Range<BufferAddress>) -> BufferAddress {
+    range
+        .end
+        .checked_sub(range.start)
+        .expect("range is backwards; end should not be less than start")
 }
