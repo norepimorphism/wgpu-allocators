@@ -2,15 +2,15 @@ use wgpu::BufferAddress;
 
 use std::ops::Range;
 
-use crate::{Allocator, Deallocator, NonZeroBufferAddress};
+use crate::{Allocator, Deallocator, Heap, NonZeroBufferAddress};
 
 pub struct Stack {
     pointer: BufferAddress,
 }
 
 impl Allocator for Stack {
-    fn new(size: NonZeroBufferAddress) -> Self {
-        Self { pointer: size.get() }
+    fn new(heap: &Heap) -> Self {
+        Self { pointer: heap.size.get() }
     }
 
     fn alloc(
@@ -26,7 +26,7 @@ impl Allocator for Stack {
 }
 
 impl Deallocator for Stack {
-    fn dealloc(&mut self, range: Range<BufferAddress>) -> Result<(), ()> {
+    unsafe fn dealloc(&mut self, range: Range<BufferAddress>) -> Result<(), ()> {
         if range.start == self.pointer {
             // Because, during normal operation, no two overlapping allocations will ever exist, we
             // know that, if a range from a given allocation begins at `self.pointer`, it must be
