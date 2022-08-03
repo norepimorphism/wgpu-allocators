@@ -1,12 +1,8 @@
 use wgpu::BufferAddress;
 
-use crate::{Allocator, Deallocator, NonZeroBufferAddress};
+use std::ops::Range;
 
-fn create_alignment_bitmask(alignment: NonZeroBufferAddress) -> u64 {
-    // SAFETY: `alignment` is a nonzero unsigned integer, so its value must be greater than or equal
-    // to 1. Thus, subtracting one will never result in underflow.
-    !unsafe { alignment.get().unchecked_sub(1) }
-}
+use crate::{Allocator, Deallocator, NonZeroBufferAddress};
 
 pub struct Stack {
     pointer: BufferAddress,
@@ -45,4 +41,10 @@ impl Deallocator for Stack {
             Err(())
         }
     }
+}
+
+fn create_alignment_bitmask(alignment: NonZeroBufferAddress) -> u64 {
+    // SAFETY: `alignment` is a nonzero unsigned integer, so its value must be greater than or equal
+    // to 1. Thus, subtracting one will never result in underflow.
+    !unsafe { alignment.get().unchecked_sub(1) }
 }
