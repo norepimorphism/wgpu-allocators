@@ -3,26 +3,26 @@
 #![feature(unchecked_math)]
 
 mod allocators;
+pub mod arena;
 
 use wgpu::{BufferAddress, BufferUsages};
 
 use std::ops::Range;
 
 pub use allocators::*;
+pub use arena::HeapArena;
 
 pub type NonZeroBufferAddress = std::num::NonZeroU64;
 
 pub trait Allocator {
-    fn new(heap: &Heap) -> Self;
+    fn new(heap: &Heap) -> Self where Self: Sized;
 
     fn alloc(
         &mut self,
         size: NonZeroBufferAddress,
         alignment: NonZeroBufferAddress,
     ) -> Option<Range<BufferAddress>>;
-}
 
-pub trait Deallocator: Allocator {
     /// # Safety
     ///
     /// `range` must be a valid allocation previously returned by this allocator.
@@ -97,14 +97,28 @@ pub struct Heap {
 }
 
 impl Heap {
-    pub fn write(
+    pub fn size(&self) -> NonZeroBufferAddress {
+        self.size
+    }
+
+    pub fn write_and_flush(
         &self,
         encoder: &mut wgpu::CommandEncoder,
         range: Range<BufferAddress>,
         contents: &[u8],
     ) {
-        self.slice(range.clone()).get_mapped_range_mut().copy_from_slice(contents);
+        self.write(range.clone(), contents);
         self.flush_range(encoder, range);
+    }
+
+    pub fn write(
+        &self,
+        range: Range<BufferAddress>,
+        contents: &[u8],
+    ) {
+        let slice = self.slice(range.clone());
+        slice.map_async(wgpu::MapMode::Write, |_| {});
+        slice.get_mapped_range_mut().copy_from_slice(contents);
     }
 
     pub fn slice<'a>(&'a self, range: Range<BufferAddress>) -> wgpu::BufferSlice<'a> {
@@ -138,6 +152,10 @@ impl Heap {
             range.start,
             get_range_size(&range),
         );
+    }
+
+    pub fn unmap(&self) {
+        self.staging_buffer.unmap();
     }
 }
 

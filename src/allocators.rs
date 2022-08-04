@@ -2,7 +2,7 @@ use wgpu::BufferAddress;
 
 use std::ops::Range;
 
-use crate::{Allocator, Deallocator, Heap, NonZeroBufferAddress};
+use crate::{Allocator, Heap, NonZeroBufferAddress};
 
 #[derive(Debug)]
 pub struct Stack {
@@ -23,9 +23,7 @@ impl Allocator for Stack {
 
         Some(self.pointer..(self.pointer + size.get()))
     }
-}
 
-impl Deallocator for Stack {
     unsafe fn dealloc(&mut self, range: Range<BufferAddress>) -> Result<(), ()> {
         if range.start == self.pointer {
             // Because, during normal operation, no two overlapping allocations will ever exist, we
