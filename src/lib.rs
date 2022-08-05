@@ -157,6 +157,11 @@ impl Heap {
     pub fn unmap(&self) {
         self.staging_buffer.unmap();
     }
+
+    pub fn destroy(&self) {
+        self.staging_buffer.destroy();
+        self.gpu_buffer.destroy();
+    }
 }
 
 fn get_range_size(range: &Range<BufferAddress>) -> BufferAddress {

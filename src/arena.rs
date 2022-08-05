@@ -55,8 +55,8 @@ impl<A> Default for SizePool<A> {
 /// the size of a heap rounded-down to the nearest power of 2 is `2^n`.
 ///
 /// There is an exception to this&mdash;[`HeapArena::tiny_pool`], which is for heaps and allocators
-/// of size 1 to 256 bytes (exclusive). Another way of thinking about this is that it contains heaps
-/// and allocators from size classes 0 to 7 (inclusive).
+/// of size 1 to 4,096 bytes (exclusive). Another way of thinking about this is that it contains
+/// heaps and allocators from size classes 0 to 11 (inclusive).
 struct SizePool<A>(Vec<(Heap, A)>);
 
 impl<A> HeapArena<A> {
@@ -75,18 +75,19 @@ impl<A> HeapArena<A> {
 }
 
 pub struct HeapArena<A> {
-    /// A [`SizePool`] for heaps and allocators of size 1 to 256 bytes (inclusive).
+    /// A [`SizePool`] for heaps and allocators of size 1 to 4,096 bytes (inclusive).
     ///
     /// This is separated from [`Self::size_pools`] as it seemed silly to allocate pools for size
-    /// classes of 0, 1, 2, etc., which represent very small heaps.
+    /// classes of 0, 1, 2, etc., which represent very small heaps that should probably never be
+    /// created in practice.
     tiny_pool: SizePool<A>,
     /// The size pools of heaps and allocators that make up this arena's backing storage.
     ///
     /// See [`SizePool`] for details on how a size pool is laid out internally.
     ///
-    /// This field orders pools from lowest to highest size class, beginning at 8. Therefore, index
-    /// 0 is for heaps of size 256 to 512 bytes (exclusive), index 1 is for heaps of size 512 to
-    /// 1024 bytes (exclusive), and so on.
+    /// This field orders pools from lowest to highest size class, beginning at 12. Therefore, index
+    /// 0 is for heaps of size 4,096 to 8,192 bytes (exclusive), index 1 is for heaps of size 8,192
+    /// to 16,384 bytes (exclusive), and so on.
     size_pools: Vec<SizePool<A>>,
     /// The usage for all heaps within this arena.
     usage: HeapUsages,
@@ -102,11 +103,11 @@ impl<A: Allocator> HeapArena<A> {
         alignment: NonZeroBufferAddress,
     ) -> Allocation {
         let size_class = classify_size(size);
-        let pool = if size_class < 8 {
+        let pool = if size_class < 12 {
             &mut self.tiny_pool
         } else {
-            // SAFETY: `size_class` is at least 8, so this will never underflow.
-            let index = unsafe { size_class.unchecked_sub(8) };
+            // SAFETY: `size_class` is at least 12, so this will never underflow.
+            let index = unsafe { size_class.unchecked_sub(12) };
 
             &mut self.size_pools[index]
         };
@@ -178,7 +179,6 @@ impl<A: Allocator> SizePool<A> {
         new_heap_size: NonZeroBufferAddress,
         usage: HeapUsages,
     ) -> &mut (Heap, A) {
-
         let heap = Heap::new(device, new_heap_size, usage);
         let allocator = A::new(&heap);
         self.0.push((heap, allocator));
@@ -204,11 +204,11 @@ impl<A> Index<ArenaKey> for HeapArena<A> {
     type Output = (Heap, A);
 
     fn index(&self, key: ArenaKey) -> &Self::Output {
-        if key.size_class < 8 {
+        if key.size_class < 12 {
             &self.tiny_pool.0[key.index_in_pool]
         } else {
-            // SAFETY: `size_class` is at least 8, so this will never underflow.
-            let pool = &self.size_pools[unsafe { key.size_class.unchecked_sub(8) }];
+            // SAFETY: `size_class` is at least 12, so this will never underflow.
+            let pool = &self.size_pools[unsafe { key.size_class.unchecked_sub(12) }];
 
             &pool.0[key.index_in_pool]
         }
@@ -217,12 +217,12 @@ impl<A> Index<ArenaKey> for HeapArena<A> {
 
 impl<A> IndexMut<ArenaKey> for HeapArena<A> {
     fn index_mut(&mut self, key: ArenaKey) -> &mut Self::Output {
-        if key.size_class < 8 {
+        if key.size_class < 12 {
             &mut self.tiny_pool.0[key.index_in_pool]
         } else {
-            // SAFETY: `size_class` is at least 8, so this will never underflow.
+            // SAFETY: `size_class` is at least 12, so this will never underflow.
             let pool = &mut self.size_pools[unsafe {
-                key.size_class.unchecked_sub(8)
+                key.size_class.unchecked_sub(12)
             }];
 
             &mut pool.0[key.index_in_pool]
