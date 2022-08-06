@@ -109,6 +109,10 @@ impl<A: Allocator> HeapArena<A> {
         }
     }
 
+    pub fn slice<'a>(&'a self, allocation: &Allocation) -> wgpu::BufferSlice<'a> {
+        self[allocation.arena_key.clone()].0.slice(allocation.range_in_heap.clone())
+    }
+
     pub fn alloc(
         &mut self,
         device: &wgpu::Device,
@@ -209,7 +213,7 @@ pub struct Allocation {
     pub range_in_heap: Range<BufferAddress>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ArenaKey {
     size_class: usize,
     index_in_pool: usize,
