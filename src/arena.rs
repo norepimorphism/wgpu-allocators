@@ -98,6 +98,17 @@ pub struct HeapArena<A> {
 }
 
 impl<A: Allocator> HeapArena<A> {
+    pub fn unmap(&self) {
+        for (heap, _) in self.tiny_pool.0.iter() {
+            heap.unmap();
+        }
+        for pool in self.size_pools.iter() {
+            for (heap, _) in pool.0.iter() {
+                heap.unmap();
+            }
+        }
+    }
+
     pub fn alloc(
         &mut self,
         device: &wgpu::Device,
