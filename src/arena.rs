@@ -57,6 +57,7 @@ impl<A> Default for SizePool<A> {
 /// There is an exception to this&mdash;[`HeapArena::tiny_pool`], which is for heaps and allocators
 /// of size 1 to 4,096 bytes (exclusive). Another way of thinking about this is that it contains
 /// heaps and allocators from size classes 0 to 11 (inclusive).
+#[derive(Debug)]
 struct SizePool<A>(Vec<(Heap, A)>);
 
 impl<A> HeapArena<A> {
@@ -74,6 +75,7 @@ impl<A> HeapArena<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct HeapArena<A> {
     /// A [`SizePool`] for heaps and allocators of size 1 to 4,096 bytes (inclusive).
     ///
@@ -188,6 +190,7 @@ impl<A: Allocator> SizePool<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct Allocation {
     pub arena_key: ArenaKey,
     /// The result from [`Allocator::alloc`]. To be used with the heap represented by
@@ -195,6 +198,7 @@ pub struct Allocation {
     pub range_in_heap: Range<BufferAddress>,
 }
 
+#[derive(Debug)]
 pub struct ArenaKey {
     size_class: usize,
     index_in_pool: usize,

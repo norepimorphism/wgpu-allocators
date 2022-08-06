@@ -117,8 +117,11 @@ impl Heap {
         contents: &[u8],
     ) {
         let slice = self.slice(range.clone());
-        slice.map_async(wgpu::MapMode::Write, |_| {});
         slice.get_mapped_range_mut().copy_from_slice(contents);
+
+        // Queue this slice to be re-mapped after the current frame is rendered (assuming this
+        // buffer is unmapped first).
+        slice.map_async(wgpu::MapMode::Write, |_| {});
     }
 
     pub fn slice<'a>(&'a self, range: Range<BufferAddress>) -> wgpu::BufferSlice<'a> {
