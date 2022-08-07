@@ -97,6 +97,7 @@ pub struct Heap {
 }
 
 impl Heap {
+    /// The size, in bytes, of this heap.
     pub fn size(&self) -> NonZeroBufferAddress {
         self.size
     }

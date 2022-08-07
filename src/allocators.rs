@@ -4,6 +4,13 @@ use std::ops::Range;
 
 use crate::{Allocator, Heap, NonZeroBufferAddress};
 
+/// A bump allocator with support for deallocations in reverse allocation order.
+///
+/// The simplest (and fastest) of allocators, the stack allocator maintains a pointer that divides
+/// free space from allocated space and bumps it up and down in accordance with allocations and
+/// deallocations. While this completely takes fragmentation out of the equation, it is generally
+/// only suited for allocations of a known quantity that live forever; otherwise, stack allocation
+/// quickly leads to leaked resources and wasted memory.
 #[derive(Debug)]
 pub struct Stack {
     pointer: BufferAddress,

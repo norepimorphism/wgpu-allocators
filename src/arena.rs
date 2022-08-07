@@ -62,6 +62,13 @@ struct SizePool<A>(Vec<(Heap, A)>);
 
 impl<A> HeapArena<A> {
     /// Creates a new `HeapArena`.
+    ///
+    /// The closure `calc_new_heap_size` largely determines the performance characteristics of the
+    /// returned arena. In general, to increase performance&mdash;by decreasing the number of
+    /// buffer allocations&mdash;at the cost of increased memory usage, one should return larger
+    /// heap sizes. Conversely, to save memory at the cost of decreased performance, one should
+    /// return heap sizes equal to, or slightly greater than, the initial requested in-heap
+    /// allocation size.
     pub fn new(
         usage: HeapUsages,
         calc_new_heap_size: CalculateNewHeapSize,
@@ -75,6 +82,11 @@ impl<A> HeapArena<A> {
     }
 }
 
+/// A collection of [`Heap`]s unified by a single infallible allocation interface.
+///
+/// In particular, this collection is an *arena*&mdash;new heaps can be allocated, but existing
+/// heaps cannot be selectively deallocated. The heaps contained within this arena are
+/// simultaneously deallocated when the arena itself is dropped.
 #[derive(Debug)]
 pub struct HeapArena<A> {
     /// A [`SizePool`] for heaps and allocators of size 1 to 4,096 bytes (inclusive).
@@ -109,10 +121,6 @@ impl<A: Allocator> HeapArena<A> {
         }
     }
 
-    pub fn slice<'a>(&'a self, allocation: &Allocation) -> wgpu::BufferSlice<'a> {
-        self[allocation.arena_key.clone()].0.slice(allocation.range_in_heap.clone())
-    }
-
     pub fn alloc(
         &mut self,
         device: &wgpu::Device,
@@ -125,6 +133,11 @@ impl<A: Allocator> HeapArena<A> {
         } else {
             // SAFETY: `size_class` is at least 12, so this will never underflow.
             let index = unsafe { size_class.unchecked_sub(12) };
+
+            let min_len = index + 1;
+            if self.size_pools.len() < min_len {
+                self.size_pools.resize_with(min_len, || SizePool::default());
+            }
 
             &mut self.size_pools[index]
         };
@@ -247,4 +260,43 @@ impl<A> IndexMut<ArenaKey> for HeapArena<A> {
             &mut pool.0[key.index_in_pool]
         }
     }
+}
+
+macro_rules! impl_heap_api {
+    (
+        fn $fn:ident(
+            $($($pre_arg_name:ident : $pre_arg_ty:ty),* ,)?
+            @
+            $(, $($post_arg_name:ident : $post_arg_ty:ty),*)? $(,)?
+        ) $(-> $ret_ty:ty)?
+    ) => {
+        pub fn $fn<'a>(
+            &'a self,
+            $($($pre_arg_name: $pre_arg_ty),* ,)?
+            allocation: &Allocation,
+            $($($post_arg_name: $post_arg_ty),*)?
+        ) $(-> $ret_ty)? {
+            self[allocation.arena_key.clone()]
+                .0
+                .$fn(
+                    $($($pre_arg_name),* ,)?
+                    allocation.range_in_heap.clone(),
+                    $($($post_arg_name),*)?
+                )
+        }
+    };
+}
+
+impl<A> HeapArena<A> {
+    impl_heap_api!(
+        fn write_and_flush(
+            encoder: &mut wgpu::CommandEncoder,
+            @,
+            contents: &[u8],
+        )
+    );
+    impl_heap_api!(fn write(@, contents: &[u8]));
+    impl_heap_api!(fn slice(@) -> wgpu::BufferSlice<'a>);
+    impl_heap_api!(fn binding(@) -> wgpu::BufferBinding<'a>);
+    impl_heap_api!(fn flush_range(encoder: &mut wgpu::CommandEncoder, @));
 }
