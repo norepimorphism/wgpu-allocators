@@ -102,6 +102,13 @@ impl Heap {
         self.size
     }
 
+    pub fn map_range_async(&self, range: Range<BufferAddress>, mode: wgpu::MapMode) {
+        self
+            .staging_buffer
+            .slice(range)
+            .map_async(mode, |_| {});
+    }
+
     pub fn write_and_flush(
         &self,
         encoder: &mut wgpu::CommandEncoder,
