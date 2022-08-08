@@ -117,7 +117,7 @@ impl Heap {
         range: Range<BufferAddress>,
         contents: &[u8],
     ) {
-        let slice = self.slice(range.clone());
+        let slice = self.staging_buffer.slice(range.clone());
         slice.get_mapped_range_mut().copy_from_slice(contents);
 
         // Queue this slice to be re-mapped after the current frame is rendered (assuming this
@@ -126,7 +126,7 @@ impl Heap {
     }
 
     pub fn slice<'a>(&'a self, range: Range<BufferAddress>) -> wgpu::BufferSlice<'a> {
-        self.staging_buffer.slice(range)
+        self.gpu_buffer.slice(range)
     }
 
     pub fn binding<'a>(&'a self, range: Range<BufferAddress>) -> wgpu::BufferBinding<'a> {
